@@ -1,0 +1,523 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>极简番茄钟</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            color: #fff;
+        }
+
+        .container {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(20px);
+            border-radius: 30px;
+            padding: 40px 50px;
+            box-shadow: 0 25px 50px rgba(0, 0, 0, 0.2);
+            text-align: center;
+            min-width: 380px;
+        }
+
+        h1 {
+            font-size: 28px;
+            font-weight: 300;
+            letter-spacing: 4px;
+            margin-bottom: 30px;
+            opacity: 0.9;
+        }
+
+        .timer {
+            font-size: 100px;
+            font-weight: 200;
+            font-variant-numeric: tabular-nums;
+            letter-spacing: 5px;
+            margin: 20px 0;
+            line-height: 1;
+        }
+
+        .modes {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            margin-bottom: 30px;
+        }
+
+        .mode-btn {
+            background: rgba(255, 255, 255, 0.15);
+            border: none;
+            color: #fff;
+            padding: 10px 20px;
+            border-radius: 30px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.3s ease;
+            backdrop-filter: blur(5px);
+        }
+
+        .mode-btn:hover {
+            background: rgba(255, 255, 255, 0.25);
+        }
+
+        .mode-btn.active {
+            background: rgba(255, 255, 255, 0.35);
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+        }
+
+        .controls {
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+            margin: 25px 0;
+        }
+
+        .ctrl-btn {
+            background: rgba(255, 255, 255, 0.2);
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            color: #fff;
+            padding: 12px 30px;
+            border-radius: 50px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: 500;
+            transition: all 0.3s ease;
+            letter-spacing: 1px;
+        }
+
+        .ctrl-btn:hover {
+            background: rgba(255, 255, 255, 0.3);
+            transform: scale(1.05);
+        }
+
+        .ctrl-btn:active {
+            transform: scale(0.95);
+        }
+
+        .ctrl-btn.primary {
+            background: #fff;
+            color: #667eea;
+            border-color: #fff;
+        }
+
+        .ctrl-btn.primary:hover {
+            background: #f0f0f0;
+        }
+
+        .sound-selector {
+            margin-top: 20px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .sound-selector label {
+            font-size: 14px;
+            opacity: 0.8;
+        }
+
+        .sound-selector select {
+            background: rgba(255, 255, 255, 0.15);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            color: #fff;
+            padding: 8px 20px;
+            border-radius: 25px;
+            font-size: 14px;
+            cursor: pointer;
+            outline: none;
+            appearance: none;
+            -webkit-appearance: none;
+        }
+
+        .sound-selector select option {
+            background: #667eea;
+            color: #fff;
+        }
+
+        .status {
+            margin-top: 15px;
+            font-size: 13px;
+            opacity: 0.6;
+            letter-spacing: 1px;
+        }
+
+        @media (max-width: 480px) {
+            .container {
+                min-width: unset;
+                width: 90%;
+                padding: 30px 20px;
+            }
+            .timer {
+                font-size: 70px;
+            }
+            .modes {
+                flex-wrap: wrap;
+            }
+            .mode-btn {
+                padding: 8px 16px;
+                font-size: 13px;
+            }
+            .ctrl-btn {
+                padding: 10px 20px;
+                font-size: 14px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>番茄钟</h1>
+        <div class="modes">
+            <button class="mode-btn active" data-mode="focus">专注 25分</button>
+            <button class="mode-btn" data-mode="shortBreak">短休 5分</button>
+            <button class="mode-btn" data-mode="longBreak">长休 15分</button>
+        </div>
+        <div class="timer" id="timerDisplay">25:00</div>
+        <div class="controls">
+            <button class="ctrl-btn primary" id="startPauseBtn">开始</button>
+            <button class="ctrl-btn" id="resetBtn">重置</button>
+        </div>
+        <div class="sound-selector">
+            <label for="soundSelect">白噪音</label>
+            <select id="soundSelect">
+                <option value="none">无</option>
+                <option value="rain">雨声</option>
+                <option value="ocean">海浪</option>
+                <option value="fire">篝火</option>
+            </select>
+        </div>
+        <div class="status" id="statusText">准备就绪</div>
+    </div>
+
+    <script>
+        // ==================== 状态管理 ====================
+        const MODE_CONFIG = {
+            focus: { duration: 25 * 60, label: '专注时间' },
+            shortBreak: { duration: 5 * 60, label: '短休息' },
+            longBreak: { duration: 15 * 60, label: '长休息' }
+        };
+
+        let state = {
+            currentMode: 'focus',
+            timeRemaining: MODE_CONFIG.focus.duration,
+            isRunning: false,
+            soundType: 'none'
+        };
+
+        // ==================== DOM 引用 ====================
+        const timerDisplay = document.getElementById('timerDisplay');
+        const modeBtns = document.querySelectorAll('.mode-btn');
+        const startPauseBtn = document.getElementById('startPauseBtn');
+        const resetBtn = document.getElementById('resetBtn');
+        const soundSelect = document.getElementById('soundSelect');
+        const statusText = document.getElementById('statusText');
+
+        // ==================== 音效引擎 ====================
+        let audioCtx = null;
+        let noiseNode = null;
+        let gainNode = null;
+
+        function getAudioContext() {
+            if (!audioCtx) {
+                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            }
+            return audioCtx;
+        }
+
+        function createNoise(type) {
+            const ctx = getAudioContext();
+            const sampleRate = ctx.sampleRate;
+            const bufferSize = sampleRate * 2;
+            const buffer = ctx.createBuffer(1, bufferSize, sampleRate);
+            const data = buffer.getChannelData(0);
+
+            if (type === 'rain') {
+                for (let i = 0; i < bufferSize; i++) {
+                    data[i] = (Math.random() * 2 - 1) * 0.3;
+                    // 简单的低通滤波模拟雨声
+                    if (i > 0) {
+                        data[i] = data[i] * 0.3 + data[i - 1] * 0.7;
+                    }
+                }
+            } else if (type === 'ocean') {
+                let phase = 0;
+                for (let i = 0; i < bufferSize; i++) {
+                    const noise = Math.random() * 2 - 1;
+                    const slowOsc = Math.sin(phase) * 0.5 + 0.5;
+                    data[i] = noise * 0.2 + slowOsc * 0.3;
+                    phase += 0.0005;
+                }
+            } else if (type === 'fire') {
+                for (let i = 0; i < bufferSize; i++) {
+                    const crackle = Math.random() < 0.02 ? 1 : 0;
+                    const noise = (Math.random() * 2 - 1) * 0.3;
+                    data[i] = noise + crackle * 0.5;
+                }
+            }
+
+            return buffer;
+        }
+
+        function startSound(type) {
+            if (type === 'none') {
+                stopSound();
+                return;
+            }
+
+            try {
+                stopSound();
+                const ctx = getAudioContext();
+                if (ctx.state === 'suspended') {
+                    ctx.resume();
+                }
+
+                const buffer = createNoise(type);
+                noiseNode = ctx.createBufferSource();
+                noiseNode.buffer = buffer;
+                noiseNode.loop = true;
+
+                gainNode = ctx.createGain();
+                gainNode.gain.value = 0.3;
+
+                noiseNode.connect(gainNode);
+                gainNode.connect(ctx.destination);
+                noiseNode.start();
+            } catch (e) {
+                console.warn('音效启动失败:', e);
+            }
+        }
+
+        function stopSound() {
+            if (noiseNode) {
+                try {
+                    noiseNode.stop();
+                    noiseNode.disconnect();
+                } catch (e) { /* ignore */ }
+                noiseNode = null;
+            }
+            if (gainNode) {
+                gainNode.disconnect();
+                gainNode = null;
+            }
+        }
+
+        // ==================== 计时器核心 ====================
+        let timerInterval = null;
+        let lastTickTime = null;
+
+        function formatTime(seconds) {
+            const m = Math.floor(seconds / 60);
+            const s = seconds % 60;
+            return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+        }
+
+        function updateDisplay() {
+            timerDisplay.textContent = formatTime(state.timeRemaining);
+            const config = MODE_CONFIG[state.currentMode];
+            statusText.textContent = state.isRunning ? '进行中...' : config.label;
+        }
+
+        function tick() {
+            if (state.timeRemaining > 0) {
+                state.timeRemaining--;
+                updateDisplay();
+                saveState();
+                if (state.timeRemaining === 0) {
+                    pauseTimer();
+                    statusText.textContent = '时间到！';
+                    // 播放结束提示（简单蜂鸣）
+                    try {
+                        const ctx = getAudioContext();
+                        if (ctx.state === 'suspended') ctx.resume();
+                        const osc = ctx.createOscillator();
+                        const g = ctx.createGain();
+                        osc.connect(g);
+                        g.connect(ctx.destination);
+                        osc.frequency.value = 880;
+                        g.gain.value = 0.3;
+                        osc.start();
+                        g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.5);
+                        osc.stop(ctx.currentTime + 0.5);
+                    } catch (e) { /* ignore */ }
+                }
+            } else {
+                pauseTimer();
+            }
+        }
+
+        function startTimer() {
+            if (state.isRunning) return;
+            if (state.timeRemaining <= 0) {
+                resetTimer();
+            }
+            state.isRunning = true;
+            startPauseBtn.textContent = '暂停';
+            lastTickTime = Date.now();
+            timerInterval = setInterval(() => {
+                tick();
+            }, 1000);
+            updateDisplay();
+            saveState();
+        }
+
+        function pauseTimer() {
+            if (!state.isRunning) return;
+            state.isRunning = false;
+            startPauseBtn.textContent = '继续';
+            if (timerInterval) {
+                clearInterval(timerInterval);
+                timerInterval = null;
+            }
+            saveState();
+        }
+
+        function resetTimer() {
+            pauseTimer();
+            state.timeRemaining = MODE_CONFIG[state.currentMode].duration;
+            startPauseBtn.textContent = '开始';
+            updateDisplay();
+            saveState();
+        }
+
+        function switchMode(mode) {
+            if (state.currentMode === mode && state.timeRemaining === MODE_CONFIG[mode].duration) return;
+            pauseTimer();
+            state.currentMode = mode;
+            state.timeRemaining = MODE_CONFIG[mode].duration;
+            startPauseBtn.textContent = '开始';
+            // 更新按钮激活状态
+            modeBtns.forEach(btn => {
+                btn.classList.toggle('active', btn.dataset.mode === mode);
+            });
+            updateDisplay();
+            saveState();
+        }
+
+        // ==================== 持久化 ====================
+        function saveState() {
+            try {
+                const data = {
+                    currentMode: state.currentMode,
+                    timeRemaining: state.timeRemaining,
+                    isRunning: state.isRunning,
+                    soundType: state.soundType
+                };
+                localStorage.setItem('pomodoroState', JSON.stringify(data));
+            } catch (e) { /* ignore */ }
+        }
+
+        function loadState() {
+            try {
+                const saved = localStorage.getItem('pomodoroState');
+                if (saved) {
+                    const data = JSON.parse(saved);
+                    if (data.currentMode && MODE_CONFIG[data.currentMode]) {
+                        state.currentMode = data.currentMode;
+                        // 如果保存的时间超出模式范围，则重置
+                        const maxTime = MODE_CONFIG[data.currentMode].duration;
+                        state.timeRemaining = Math.min(data.timeRemaining || maxTime, maxTime);
+                        state.isRunning = data.isRunning || false;
+                        state.soundType = data.soundType || 'none';
+                        return true;
+                    }
+                }
+            } catch (e) { /* ignore */ }
+            return false;
+        }
+
+        // ==================== 事件绑定 ====================
+        // 模式切换
+        modeBtns.forEach(btn => {
+            btn.addEventListener('click', () => {
+                switchMode(btn.dataset.mode);
+            });
+        });
+
+        // 开始/暂停
+        startPauseBtn.addEventListener('click', () => {
+            if (state.isRunning) {
+                pauseTimer();
+            } else {
+                startTimer();
+            }
+        });
+
+        // 重置
+        resetBtn.addEventListener('click', resetTimer);
+
+        // 音效选择
+        soundSelect.addEventListener('change', () => {
+            state.soundType = soundSelect.value;
+            startSound(state.soundType);
+            saveState();
+        });
+
+        // 页面可见性变化时暂停/恢复音效
+        document.addEventListener('visibilitychange', () => {
+            if (document.hidden) {
+                if (state.soundType !== 'none') {
+                    // 暂停音效
+                    if (gainNode) {
+                        gainNode.gain.value = 0;
+                    }
+                }
+            } else {
+                if (state.soundType !== 'none') {
+                    if (gainNode) {
+                        gainNode.gain.value = 0.3;
+                    } else {
+                        startSound(state.soundType);
+                    }
+                }
+            }
+        });
+
+        // 页面关闭时停止音效
+        window.addEventListener('beforeunload', () => {
+            stopSound();
+        });
+
+        // ==================== 初始化 ====================
+        function init() {
+            const loaded = loadState();
+            if (!loaded) {
+                state.currentMode = 'focus';
+                state.timeRemaining = MODE_CONFIG.focus.duration;
+                state.isRunning = false;
+                state.soundType = 'none';
+            }
+
+            // 设置UI
+            modeBtns.forEach(btn => {
+                btn.classList.toggle('active', btn.dataset.mode === state.currentMode);
+            });
+            soundSelect.value = state.soundType;
+            updateDisplay();
+
+            // 如果保存的状态是运行中，继续计时
+            if (state.isRunning) {
+                startTimer();
+            }
+
+            // 启动音效
+            if (state.soundType !== 'none') {
+                startSound(state.soundType);
+            }
+        }
+
+        init();
+    </script>
+</body>
+</html>
